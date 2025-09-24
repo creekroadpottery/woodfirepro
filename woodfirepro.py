@@ -411,13 +411,22 @@ else:
             st.success(f"✅ Entry logged by {active_user}")
             st.rerun()
 
-        # Display recent entries with weather context
+        # Display recent entries with edit/delete functionality
         if st.session_state.log:
             st.subheader("📋 Recent Entries")
             df = pd.DataFrame(st.session_state.log)
             df_display = df.sort_values("time", ascending=False).head(8)
             
             for i, (_, row) in enumerate(df_display.iterrows()):
+                # Find the actual index in the session state
+                entry_index = None
+                for idx, entry in enumerate(st.session_state.log):
+                    if (entry['time'] == row['time'] and 
+                        entry.get('logged_by') == row.get('logged_by') and
+                        entry['temp_front'] == row['temp_front']):
+                        entry_index = idx
+                        break
+                
                 # Color-code by entry type
                 entry_colors = {
                     "observation": "🔍", "stoke": "🔥", "damper_change": "💨", 
@@ -427,6 +436,7 @@ else:
                 icon = entry_colors.get(row['entry_type'], "📝")
                 
                 with st.expander(f"{icon} {row['time']} - {row['entry_type'].replace('_', ' ').title()} by {row.get('logged_by', 'Unknown')} ({row['temp_front']}°F)"):
+                    # Entry content
                     temp_col, atm_col, weather_col = st.columns(3)
                     with temp_col:
                         st.write(f"**Temps:** F:{row['temp_front']}° M:{row['temp_middle']}° B:{row['temp_back']}° Stack:{row['temp_stack']}°")
@@ -451,6 +461,82 @@ else:
                                 st.write(f"**Impact:** {row['weather_impact']}")
                     if row.get('notes'):
                         st.write(f"**Notes:** {row['notes']}")
+                    
+                    # Edit/Delete buttons
+                    edit_col, delete_col = st.columns(2)
+                    with edit_col:
+                        if st.button(f"✏️ Edit Entry", key=f"edit_{i}"):
+                            st.session_state[f"editing_{entry_index}"] = True
+                            st.rerun()
+                    with delete_col:
+                        if st.button(f"🗑️ Delete Entry", key=f"delete_{i}", type="secondary"):
+                            if entry_index is not None:
+                                st.session_state.log.pop(entry_index)
+                                st.success("Entry deleted!")
+                                st.rerun()
+        
+        # Edit form for entries
+        if st.session_state.log:
+            for idx, entry in enumerate(st.session_state.log):
+                if st.session_state.get(f"editing_{idx}", False):
+                    st.subheader(f"✏️ Editing Entry: {entry['time']}")
+                    
+                    with st.form(f"edit_form_{idx}"):
+                        # Editable fields
+                        edit_col1, edit_col2 = st.columns(2)
+                        with edit_col1:
+                            new_temp_front = st.number_input("Front Temp", value=entry['temp_front'], key=f"edit_temp_front_{idx}")
+                            new_atmosphere = st.selectbox("Atmosphere", 
+                                                        ["neutral", "light_oxidation", "oxidation", "light_reduction", "reduction", "heavy_reduction"],
+                                                        index=["neutral", "light_oxidation", "oxidation", "light_reduction", "reduction", "heavy_reduction"].index(entry.get('atmosphere', 'neutral')),
+                                                        key=f"edit_atmosphere_{idx}")
+                            new_damper = st.slider("Damper Position", 0, 100, entry.get('damper_position', 50), key=f"edit_damper_{idx}")
+                        
+                        with edit_col2:
+                            new_action = st.text_area("Action Taken", value=entry.get('action_taken', ''), key=f"edit_action_{idx}")
+                            new_notes = st.text_area("Notes", value=entry.get('notes', ''), key=f"edit_notes_{idx}")
+                        
+                        # Form buttons
+                        save_col, cancel_col = st.columns(2)
+                        with save_col:
+                            if st.form_submit_button("💾 Save Changes"):
+                                # Update the entry
+                                st.session_state.log[idx]['temp_front'] = new_temp_front
+                                st.session_state.log[idx]['atmosphere'] = new_atmosphere
+                                st.session_state.log[idx]['damper_position'] = new_damper
+                                st.session_state.log[idx]['action_taken'] = new_action
+                                st.session_state.log[idx]['notes'] = new_notes
+                                st.session_state.log[idx]['edited_by'] = active_user
+                                st.session_state.log[idx]['edited_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                
+                                # Clear editing state
+                                st.session_state[f"editing_{idx}"] = False
+                                st.success("Entry updated!")
+                                st.rerun()
+                        
+                        with cancel_col:
+                            if st.form_submit_button("❌ Cancel"):
+                                st.session_state[f"editing_{idx}"] = False
+                                st.rerun()
+        
+        # Bulk operations for log entries
+        if st.session_state.log:
+            st.subheader("🔧 Bulk Log Operations")
+            bulk_log_col1, bulk_log_col2 = st.columns(2)
+            
+            with bulk_log_col1:
+                if st.button("🗑️ Clear Last Entry", type="secondary"):
+                    if st.session_state.log:
+                        removed = st.session_state.log.pop()
+                        st.success(f"Removed entry from {removed['time']}")
+                        st.rerun()
+            
+            with bulk_log_col2:
+                entry_count = len(st.session_state.log)
+                st.write(f"**Total Entries:** {entry_count}")
+                if entry_count > 0:
+                    latest_entry = st.session_state.log[-1]
+                    st.write(f"**Latest:** {latest_entry['time']} - {latest_entry['temp_front']}°F")
 
     # Historical Comparison Tab - NEW
     with history_tab:
@@ -635,11 +721,28 @@ else:
                 last_stoke = wood_df.iloc[-1]['time'] if not wood_df.empty else "None"
                 st.metric("Last Stoke", last_stoke.split()[1] if len(last_stoke.split()) > 1 else last_stoke)
             
-            # Recent wood entries
+            # Recent wood entries with edit/delete options
             st.subheader("🪵 Recent Wood Usage")
             recent_wood = wood_df.tail(10).sort_values('time', ascending=False)
-            for _, wood in recent_wood.iterrows():
-                st.write(f"**{wood['time']}** - {wood['quantity']} {wood['size']} {wood['species']} → {wood['location']} *(by {wood['logged_by']})*")
+            for idx, wood in recent_wood.iterrows():
+                wood_col1, wood_col2 = st.columns([4, 1])
+                with wood_col1:
+                    st.write(f"**{wood['time']}** - {wood['quantity']} {wood['size']} {wood['species']} → {wood['location']} *(by {wood['logged_by']})*")
+                with wood_col2:
+                    # Find the actual index in wood_log
+                    wood_index = None
+                    for i, entry in enumerate(st.session_state.wood_log):
+                        if (entry['time'] == wood['time'] and 
+                            entry['species'] == wood['species'] and 
+                            entry['quantity'] == wood['quantity']):
+                            wood_index = i
+                            break
+                    
+                    if wood_index is not None:
+                        if st.button("🗑️", key=f"delete_wood_{idx}", help="Delete this wood entry"):
+                            st.session_state.wood_log.pop(wood_index)
+                            st.success("Wood entry deleted!")
+                            st.rerun()
         
         # Traditional inventory section
         st.subheader("📦 Wood Inventory Management")
@@ -784,10 +887,10 @@ else:
         else:
             st.info(f"⏸️ Timer idle - Suggested interval for {phase} phase: {default_interval} minutes")
 
-    # Visual Kiln Map for Cone Tracking
+    # Visual Kiln Map for Cone Tracking with Edit/Clear functionality
     with cones_tab:
         st.subheader("🎯 Interactive Kiln Cone Map")
-        st.caption("Click grid positions to update cone status. Visual representation of your kiln interior.")
+        st.caption("Click grid positions to update cone status. Right-click options for editing/clearing.")
         
         # Cone selection controls
         cone_col1, cone_col2, cone_col3 = st.columns(3)
@@ -801,7 +904,7 @@ else:
         # Visual kiln grid (6 rows x 8 columns)
         st.subheader("Kiln Interior View (Front to Back)")
         
-        # Create visual grid
+        # Create visual grid with edit/clear options
         for row in range(6):
             cols = st.columns(8)
             for col in range(8):
@@ -826,7 +929,7 @@ else:
                     else:
                         display_text = "Empty"
                     
-                    # Button for this position
+                    # Main button for this position
                     if st.button(f"R{row+1}C{col+1}", key=f"pos_{row}_{col}", help=display_text):
                         # Update the position
                         if position_key not in st.session_state.cone_status:
@@ -837,30 +940,155 @@ else:
                         st.success(f"Updated R{row+1}C{col+1}: Cone {selected_cone} = {cone_status}")
                         st.rerun()
                     
+                    # Edit/Clear options if position has data
+                    if position_data["cones"]:
+                        edit_clear_col1, edit_clear_col2 = st.columns(2)
+                        with edit_clear_col1:
+                            if st.button("✏️", key=f"edit_pos_{row}_{col}", help="Edit this position"):
+                                st.session_state[f"editing_cone_{position_key}"] = True
+                                st.rerun()
+                        with edit_clear_col2:
+                            if st.button("🗑️", key=f"clear_pos_{row}_{col}", help="Clear this position"):
+                                st.session_state.cone_status[position_key] = {"cones": {}, "last_updated": None}
+                                st.success(f"Cleared R{row+1}C{col+1}")
+                                st.rerun()
+                    
                     # Show current status
                     if position_data["cones"]:
                         st.caption(display_text.replace('\n', ' | '))
         
-        # Cone status legend
-        st.subheader("📋 Cone Status Legend")
+        # Edit forms for cone positions
+        for position_key, data in st.session_state.cone_status.items():
+            if st.session_state.get(f"editing_cone_{position_key}", False):
+                row, col = position_key.split("_")
+                st.subheader(f"✏️ Editing Position R{int(row)+1}C{int(col)+1}")
+                
+                with st.form(f"edit_cone_form_{position_key}"):
+                    st.write("**Current Cones at this Position:**")
+                    
+                    # Show existing cones with individual edit/delete options
+                    cones_to_remove = []
+                    updated_cones = {}
+                    
+                    for cone_num, status in data["cones"].items():
+                        cone_edit_col1, cone_edit_col2, cone_edit_col3 = st.columns([2, 2, 1])
+                        
+                        with cone_edit_col1:
+                            st.write(f"**Cone {cone_num}:**")
+                        with cone_edit_col2:
+                            new_status = st.selectbox(f"Status", 
+                                                    ["standing", "soft", "bending", "bent", "down", "overfired"],
+                                                    index=["standing", "soft", "bending", "bent", "down", "overfired"].index(status),
+                                                    key=f"edit_cone_{position_key}_{cone_num}")
+                            updated_cones[cone_num] = new_status
+                        with cone_edit_col3:
+                            if st.checkbox("Remove", key=f"remove_cone_{position_key}_{cone_num}"):
+                                cones_to_remove.append(cone_num)
+                    
+                    # Add new cone option
+                    st.write("**Add New Cone:**")
+                    add_col1, add_col2 = st.columns(2)
+                    with add_col1:
+                        new_cone_num = st.selectbox("New Cone", ["", "08", "06", "04", "03", "01", "1", "3", "5", "6", "7", "8", "9", "10", "11", "12"], key=f"new_cone_{position_key}")
+                    with add_col2:
+                        new_cone_status = st.selectbox("New Status", ["standing", "soft", "bending", "bent", "down", "overfired"], key=f"new_status_{position_key}")
+                    
+                    # Form buttons
+                    save_col, cancel_col = st.columns(2)
+                    with save_col:
+                        if st.form_submit_button("💾 Save Changes"):
+                            # Apply updates
+                            for cone_num in cones_to_remove:
+                                updated_cones.pop(cone_num, None)
+                            
+                            # Add new cone if specified
+                            if new_cone_num:
+                                updated_cones[new_cone_num] = new_cone_status
+                            
+                            # Save to session state
+                            st.session_state.cone_status[position_key]["cones"] = updated_cones
+                            st.session_state.cone_status[position_key]["last_updated"] = f"{datetime.now().strftime('%H:%M')} by {active_user} (edited)"
+                            
+                            # Clear editing state
+                            st.session_state[f"editing_cone_{position_key}"] = False
+                            st.success(f"Updated R{int(row)+1}C{int(col)+1}")
+                            st.rerun()
+                    
+                    with cancel_col:
+                        if st.form_submit_button("❌ Cancel"):
+                            st.session_state[f"editing_cone_{position_key}"] = False
+                            st.rerun()
+        
+        # Bulk operations
+        st.subheader("🔧 Bulk Operations")
+        bulk_col1, bulk_col2, bulk_col3 = st.columns(3)
+        
+        with bulk_col1:
+            if st.button("🗑️ Clear All Cone Data", type="secondary"):
+                if st.button("⚠️ Confirm Clear All", type="secondary"):
+                    for position_key in st.session_state.cone_status:
+                        st.session_state.cone_status[position_key] = {"cones": {}, "last_updated": None}
+                    st.success("All cone data cleared!")
+                    st.rerun()
+        
+        with bulk_col2:
+            # Export cone data for backup before clearing
+            if any(pos_data["cones"] for pos_data in st.session_state.cone_status.values()):
+                cone_backup_data = []
+                for position, data in st.session_state.cone_status.items():
+                    if data["cones"]:
+                        row, col = position.split("_")
+                        for cone_num, status in data["cones"].items():
+                            cone_backup_data.append({
+                                "position": f"R{int(row)+1}C{int(col)+1}",
+                                "cone_number": cone_num,
+                                "status": status,
+                                "last_updated": data["last_updated"]
+                            })
+                
+                if cone_backup_data:
+                    cone_backup_df = pd.DataFrame(cone_backup_data)
+                    st.download_button(
+                        "💾 Backup Cone Data",
+                        cone_backup_df.to_csv(index=False).encode('utf-8'),
+                        f"{kiln_name}_{firing_id}_cone_backup.csv",
+                        "text/csv"
+                    )
+        
+        with bulk_col3:
+            # Quick cone summary
+            total_positions = sum(1 for pos_data in st.session_state.cone_status.values() if pos_data["cones"])
+            total_cones = sum(len(pos_data["cones"]) for pos_data in st.session_state.cone_status.values())
+            st.metric("Positions Tracked", total_positions)
+            st.metric("Total Cones", total_cones)
+        
+        # Cone status legend and recent updates
+        st.subheader("📋 Cone Status Legend & Recent Updates")
         legend_col1, legend_col2 = st.columns(2)
         with legend_col1:
             st.write("🔴 Bent/Down/Overfired")
             st.write("🟡 Bending/Soft")
             st.write("⚪ Standing")
         with legend_col2:
-            st.write("**Quick Summary:**")
-            total_positions = sum(1 for pos_data in st.session_state.cone_status.values() if pos_data["cones"])
-            st.write(f"Positions tracked: {total_positions}")
-        
-        # Recent cone updates
-        if any(pos_data["last_updated"] for pos_data in st.session_state.cone_status.values()):
-            st.subheader("🕒 Recent Cone Updates")
-            for position, data in st.session_state.cone_status.items():
-                if data["last_updated"] and data["cones"]:
-                    row, col = position.split("_")
-                    cone_list = ", ".join([f"{cone}:{status}" for cone, status in data["cones"].items()])
-                    st.write(f"**R{int(row)+1}C{int(col)+1}:** {cone_list} *(updated {data['last_updated']})*")
+            # Recent cone updates
+            if any(pos_data["last_updated"] for pos_data in st.session_state.cone_status.values()):
+                st.write("**Recent Updates:**")
+                recent_updates = []
+                for position, data in st.session_state.cone_status.items():
+                    if data["last_updated"] and data["cones"]:
+                        row, col = position.split("_")
+                        cone_list = ", ".join([f"{cone}:{status}" for cone, status in data["cones"].items()])
+                        recent_updates.append({
+                            "position": f"R{int(row)+1}C{int(col)+1}",
+                            "cones": cone_list,
+                            "updated": data["last_updated"]
+                        })
+                
+                # Sort by most recent and show top 5
+                recent_updates.sort(key=lambda x: x["updated"], reverse=True)
+                for update in recent_updates[:5]:
+                    st.write(f"**{update['position']}:** {update['cones']}")
+                    st.caption(f"*{update['updated']}*")
 
     # Enhanced Crew Management with Real-time Collaboration
     with crew_tab:
@@ -898,8 +1126,8 @@ else:
             st.subheader("🔥 Active Firing Crew")
             crew_df = pd.DataFrame(st.session_state.crew)
             
-            # Display crew in a nice format
-            for _, member in crew_df.iterrows():
+            # Display crew in a nice format with edit/delete options
+            for idx, member in crew_df.iterrows():
                 role_icons = {
                     "kiln_master": "👑", "lead_stoker": "🔥", "stoker": "🪵", 
                     "spotter": "👁️", "wood_prep": "🪓", "door_tender": "🧱", 
@@ -908,7 +1136,7 @@ else:
                 icon = role_icons.get(member['role'], "👤")
                 
                 with st.container():
-                    member_col1, member_col2, member_col3 = st.columns([2, 2, 3])
+                    member_col1, member_col2, member_col3, member_col4 = st.columns([2, 2, 2, 1])
                     with member_col1:
                         st.write(f"{icon} **{member['name']}**")
                         st.write(f"*{member['role'].replace('_', ' ').title()}*")
@@ -918,6 +1146,20 @@ else:
                     with member_col3:
                         if member.get('notes'):
                             st.write(f"**Notes:** {member['notes']}")
+                    with member_col4:
+                        # Find actual index in crew list
+                        crew_index = None
+                        for i, crew_member in enumerate(st.session_state.crew):
+                            if (crew_member['name'] == member['name'] and 
+                                crew_member['role'] == member['role']):
+                                crew_index = i
+                                break
+                        
+                        if crew_index is not None:
+                            if st.button("🗑️", key=f"remove_crew_{idx}", help="Remove crew member"):
+                                st.session_state.crew.pop(crew_index)
+                                st.success(f"Removed {member['name']}")
+                                st.rerun()
                     st.divider()
             
             # Crew activity summary
