@@ -73,7 +73,9 @@ with log_tab:
     # Time and basic info
     col1, col2, col3 = st.columns(3)
     with col1:
-        t_now = st.datetime_input("Time", value=datetime.now())
+        t_date = st.date_input("Date", value=datetime.now().date())
+        t_time = st.time_input("Time", value=datetime.now().time())
+        t_now = datetime.combine(t_date, t_time)
     with col2:
         entry_type = st.selectbox("Entry Type", 
                                  ["observation", "stoke", "damper_change", "door_brick", "problem", "milestone", "shift_change"])
