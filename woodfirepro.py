@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import json
 
 st.set_page_config(page_title="WoodFirePro", page_icon="🔥", layout="wide")
@@ -271,57 +269,37 @@ with analysis_tab:
         df = pd.DataFrame(st.session_state.log)
         df['datetime'] = pd.to_datetime(df['time'])
         df = df.sort_values('datetime')
+        df_chart = df.set_index('datetime')
         
-        # Multi-temperature chart with better layout
-        fig = make_subplots(
-            rows=3, cols=1,
-            subplot_titles=('Temperature Progress (All Sensors)', 'Atmosphere Control', 'Wood Consumption Rate'),
-            vertical_spacing=0.08,
-            row_heights=[0.5, 0.25, 0.25]
-        )
+        # Temperature Progress Chart
+        st.subheader("🌡️ Temperature Progress (All Sensors)")
+        temp_chart_data = df_chart[['temp_front', 'temp_middle', 'temp_back', 'temp_stack']].copy()
+        temp_chart_data.columns = ['Front Spy', 'Middle Spy', 'Back Spy', 'Stack']
+        st.line_chart(temp_chart_data)
         
-        # Temperature traces
-        colors = {'temp_front': 'red', 'temp_middle': 'orange', 'temp_back': 'gold', 'temp_stack': 'purple'}
-        for temp_col, color in colors.items():
-            fig.add_trace(
-                go.Scatter(x=df['datetime'], y=df[temp_col], 
-                          name=temp_col.replace('temp_', '').replace('_', ' ').title(),
-                          line=dict(color=color)),
-                row=1, col=1
-            )
+        # Atmosphere Control Chart
+        st.subheader("💨 Atmosphere Control")
+        control_chart_data = df_chart[['damper_position', 'air_intake']].copy()
+        control_chart_data.columns = ['Damper Position %', 'Air Intake %']
+        st.line_chart(control_chart_data)
         
-        # Damper and air control
-        fig.add_trace(
-            go.Scatter(x=df['datetime'], y=df['damper_position'], name='Damper %', 
-                      line=dict(color='blue', dash='solid')),
-            row=2, col=1
-        )
-        fig.add_trace(
-            go.Scatter(x=df['datetime'], y=df['air_intake'], name='Air Intake %', 
-                      line=dict(color='lightblue', dash='dot')),
-            row=2, col=1
-        )
-        
-        # Wood consumption if available
+        # Wood Consumption Chart if available
         if st.session_state.wood_log:
+            st.subheader("🪵 Wood Consumption Rate")
             wood_df = pd.DataFrame(st.session_state.wood_log)
             wood_df['datetime'] = pd.to_datetime(wood_df['time'])
             wood_df = wood_df.sort_values('datetime')
             
             # Create cumulative wood consumption
             wood_df['cumulative_pieces'] = wood_df['quantity'].cumsum()
-            fig.add_trace(
-                go.Scatter(x=wood_df['datetime'], y=wood_df['cumulative_pieces'], 
-                          name='Cumulative Wood (pieces)', line=dict(color='brown')),
-                row=3, col=1
-            )
+            wood_chart_data = wood_df.set_index('datetime')[['cumulative_pieces']].copy()
+            wood_chart_data.columns = ['Total Wood Pieces Used']
+            st.line_chart(wood_chart_data)
         
-        fig.update_layout(height=800, title="Complete Firing Analysis")
-        fig.update_yaxes(title_text="Temperature (°F)", row=1, col=1)
-        fig.update_yaxes(title_text="Control Position (%)", row=2, col=1)
-        fig.update_yaxes(title_text="Wood Pieces", row=3, col=1)
-        
-        st.plotly_chart(fig, use_container_width=True)
+        # Atmosphere distribution
+        st.subheader("🔥 Atmosphere Distribution")
+        atmosphere_counts = df['atmosphere'].value_counts()
+        st.bar_chart(atmosphere_counts)
         
         # Enhanced statistics
         st.subheader("📊 Firing Statistics")
