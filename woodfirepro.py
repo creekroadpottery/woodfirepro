@@ -28,7 +28,7 @@ if "active_user" not in st.session_state:
     st.session_state.active_user = "Kiln Master"
 
 st.title("🔥 WoodFirePro")
-st.caption("Professional wood firing toolkit - built for real potters")
+st.caption("Professional wood firing toolkit - built for potters by potters")
 
 # Sidebar controls
 with st.sidebar:
