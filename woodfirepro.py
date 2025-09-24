@@ -62,8 +62,8 @@ with st.sidebar:
             st.write(f"**{member['name']}** - {member['role']}")
 
 # Main tabs
-log_tab, wood_tab, analysis_tab, timer_tab, cones_tab, crew_tab, export_tab = st.tabs([
-    "📝 Firing Log", "🪵 Wood Tracker", "📊 Analysis", "⏲️ Timer", "🎯 Cone Map", "👥 Crew", "💾 Export"
+log_tab, wood_tab, analysis_tab, timer_tab, cones_tab, crew_tab, export_tab, about_tab = st.tabs([
+    "📝 Firing Log", "🪵 Wood Tracker", "📊 Analysis", "⏲️ Timer", "🎯 Cone Map", "👥 Crew", "💾 Export", "ℹ️ About"
 ])
 
 # Enhanced Firing Log
@@ -609,6 +609,318 @@ with export_tab:
         
     else:
         st.info("🔍 No firing data to export yet. Start logging to enable exports!")
+
+# About & Help Section
+with about_tab:
+    st.header("🔥 About WoodFirePro")
+    st.subheader("Professional Wood Firing Toolkit for Ceramic Artists")
+    
+    st.markdown("""
+    **WoodFirePro** was developed by analyzing real wood firing logs from experienced potters. 
+    This tool respects the kiln master's expertise while providing comprehensive documentation 
+    and collaboration features for firing teams.
+    
+    ### 🎯 **Core Philosophy**
+    - **Kiln Master Authority**: No auto-suggestions or algorithmic interference
+    - **Real-world Workflow**: Built from actual firing log patterns  
+    - **Collaborative**: Support full firing crews with role-based logging
+    - **Comprehensive**: Track everything that matters during a wood firing
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("📖 Feature Guide")
+    
+    # Firing Log Help
+    with st.expander("📝 **Firing Log** - Core Documentation"):
+        st.markdown("""
+        **Primary logging interface for all firing observations**
+        
+        **Key Features:**
+        - **Multiple Temperature Sensors**: Front, Middle, Back spy holes + Stack temperature
+        - **Atmosphere Control**: Track atmosphere type, damper position, and air intake
+        - **Visual Observations**: Record flame character, spy hole colors, draft sounds
+        - **Action Tracking**: Document exactly what actions you took
+        - **Entry Types**: Categorize entries (observation, stoke, damper change, etc.)
+        - **User Attribution**: Every entry tagged with who logged it
+        
+        **Best Practices:**
+        - Log every 10-20 minutes during active firing phases
+        - Include specific actions taken, not just observations
+        - Use descriptive flame and color observations
+        - Note any problems or unusual behavior immediately
+        """)
+    
+    # Wood Tracker Help
+    with st.expander("🪵 **Wood Tracker** - Active Consumption Logging"):
+        st.markdown("""
+        **Track wood as it goes into the kiln - not just static inventory**
+        
+        **Active Consumption Features:**
+        - **Real-time Usage**: Log each stoking session with species, size, quantity
+        - **Firebox Location**: Track where wood goes (primary, secondary, side stoke)
+        - **Consumption Patterns**: Analyze wood usage rates over time
+        - **Species Tracking**: Monitor which woods are used in which phases
+        
+        **Inventory Management:**
+        - Traditional cord/moisture tracking for pre-firing planning
+        - Storage location management
+        - Moisture content documentation
+        
+        **Pro Tips:**
+        - Log wood immediately after stoking while details are fresh
+        - Note wood condition (dry, bark, splits easily, etc.)
+        - Track different species usage for different firing phases
+        """)
+    
+    # Analysis Help  
+    with st.expander("📊 **Analysis** - Data Visualization & Statistics"):
+        st.markdown("""
+        **Comprehensive firing analysis with multiple chart views**
+        
+        **Available Charts:**
+        - **Temperature Progress**: All sensor readings over time
+        - **Atmosphere Control**: Damper and air intake positions
+        - **Wood Consumption**: Cumulative usage patterns
+        - **Atmosphere Distribution**: Time spent in each atmosphere type
+        
+        **Key Statistics:**
+        - Total firing duration
+        - Peak temperatures across all sensors
+        - Temperature variance between sensors
+        - Average logging interval
+        - Reduction time percentage
+        
+        **When to Use:**
+        - During firing for trend monitoring
+        - Post-firing for results analysis
+        - Comparing multiple firings
+        - Identifying optimal firing curves
+        """)
+    
+    # Timer Help
+    with st.expander("⏲️ **Timer** - Phase-Aware Stoking Intervals"):
+        st.markdown("""
+        **Smart timer system that adapts to firing phases**
+        
+        **Features:**
+        - **Phase-Aware Defaults**: Suggested intervals for each firing phase
+        - **Visual Progress**: Progress bar shows elapsed time
+        - **Alert System**: Visual and audio alerts when timer expires
+        - **Auto-Reset**: Timer stops automatically when time is up
+        
+        **Suggested Intervals by Phase:**
+        - **Heating**: 15 minutes
+        - **Water Smoking**: 20 minutes  
+        - **Dehydration**: 15 minutes
+        - **Body Reduction**: 10 minutes
+        - **Glaze Maturation**: 8 minutes
+        - **Flash**: 5 minutes
+        - **Cooling**: 30 minutes
+        
+        **Note**: These are suggestions only - kiln master always decides actual timing!
+        """)
+    
+    # Cone Map Help
+    with st.expander("🎯 **Cone Map** - Visual Kiln Interior Tracking"):
+        st.markdown("""
+        **Interactive grid representation of your kiln interior**
+        
+        **How It Works:**
+        1. Select cone number and status from dropdowns
+        2. Click grid position (R1C1 = Row 1, Column 1) to update
+        3. Visual indicators show cone progression across kiln
+        
+        **Status Indicators:**
+        - 🔴 **Red**: Bent, Down, or Overfired cones
+        - 🟡 **Yellow**: Bending or Soft cones  
+        - ⚪ **White**: Standing cones
+        
+        **Grid Layout:**
+        - Default 6 rows × 8 columns
+        - Front to back representation
+        - Multiple cones can be tracked per position
+        - Timestamp and user tracking for all updates
+        
+        **Pro Tips:**
+        - Update cone status as soon as you observe changes
+        - Track draw trials and guide cones separately
+        - Use consistent positioning between firings for comparison
+        """)
+    
+    # Crew Help
+    with st.expander("👥 **Crew** - Collaborative Team Management"):
+        st.markdown("""
+        **Comprehensive crew management for team firings**
+        
+        **Role Types:**
+        - 👑 **Kiln Master**: Overall firing authority and decision maker
+        - 🔥 **Lead Stoker**: Primary stoking responsibilities  
+        - 🪵 **Stoker**: Additional stoking support
+        - 👁️ **Spotter**: Temperature and cone monitoring
+        - 🪓 **Wood Prep**: Wood preparation and staging
+        - 🧱 **Door Tender**: Door brick and damper management
+        - 🔄 **Floater**: Flexible support role
+        - 📝 **Observer**: Documentation and learning
+        - 🎓 **Student**: Learning observer
+        
+        **Collaboration Features:**
+        - Shift tracking with start/end times
+        - Activity logging (who logged what entries)
+        - Role-based responsibility clarity
+        - Experience level and contact info tracking
+        
+        **Best Practices:**
+        - Clearly define roles before firing begins
+        - Update active user name when logging
+        - Track shift changes in firing log
+        - Include experience levels for safety planning
+        """)
+    
+    # Export Help
+    with st.expander("💾 **Export** - Comprehensive Data Management"):
+        st.markdown("""
+        **Complete firing documentation export system**
+        
+        **Available Exports:**
+        - **Complete Firing Log**: All temperature, atmosphere, and observation data
+        - **Wood Consumption Log**: Detailed wood usage tracking
+        - **Crew Records**: Team member information and shift data  
+        - **Cone Status Map**: Visual kiln map data with timestamps
+        - **Master Summary**: Key metrics and firing overview
+        
+        **File Formats:**
+        - CSV format for spreadsheet compatibility
+        - Structured data for database import
+        - Human-readable summaries
+        
+        **Data Backup Strategy:**
+        - Export data regularly during long firings
+        - Save complete datasets after each firing
+        - Archive successful firing data for reference
+        - Share data with firing team members
+        
+        **Pro Tips:**
+        - Export mid-firing as backup during multi-day firings
+        - Use consistent naming conventions (kiln_date_type)
+        - Keep master summaries for firing comparison
+        """)
+    
+    st.markdown("---")
+    
+    st.subheader("🚀 **Getting Started Workflow**")
+    
+    workflow_col1, workflow_col2 = st.columns(2)
+    
+    with workflow_col1:
+        st.markdown("""
+        **Pre-Firing Setup:**
+        1. Set kiln name and firing ID
+        2. Add crew members with roles
+        3. Set current firing phase
+        4. Load wood inventory data
+        5. Set your active user name
+        """)
+    
+    with workflow_col2:
+        st.markdown("""
+        **During Firing:**
+        1. Start with initial temperature log entry
+        2. Use timer for regular check intervals
+        3. Log all significant observations and actions
+        4. Update cone status as cones move
+        5. Track wood consumption in real-time
+        """)
+    
+    st.markdown("""
+    **Post-Firing:**
+    1. Log final temperatures and observations
+    2. Update all remaining cone positions
+    3. Export complete firing documentation
+    4. Review analysis charts for insights
+    5. Archive data for future reference
+    """)
+    
+    st.markdown("---")
+    
+    st.subheader("💡 **Pro Tips & Best Practices**")
+    
+    tips_col1, tips_col2 = st.columns(2)
+    
+    with tips_col1:
+        st.markdown("""
+        **Logging Excellence:**
+        - Log immediately when you observe changes
+        - Be specific with color and flame descriptions
+        - Always note the actions you take
+        - Include atmospheric conditions (wind, rain, etc.)
+        - Document problems and how you solved them
+        """)
+    
+    with tips_col2:
+        st.markdown("""
+        **Team Coordination:**  
+        - Clearly communicate role responsibilities
+        - Update active user when logging entries
+        - Use consistent terminology across team
+        - Share observation techniques with students
+        - Keep communication open between shifts
+        """)
+    
+    st.markdown("---")
+    
+    st.subheader("🔧 **Troubleshooting & FAQ**")
+    
+    faq_col1, faq_col2 = st.columns(2)
+    
+    with faq_col1:
+        st.markdown("""
+        **Common Issues:**
+        
+        **Q: Timer not alerting?**
+        A: Make sure browser allows notifications and keep tab active
+        
+        **Q: Data not saving?**  
+        A: Export data regularly - session state resets on browser refresh
+        
+        **Q: Cone map confusing?**
+        A: Start simple - track just a few key positions first
+        """)
+    
+    with faq_col2:
+        st.markdown("""
+        **Technical Notes:**
+        
+        **Q: Mobile compatibility?**
+        A: Yes! Works on phones/tablets for quick logging
+        
+        **Q: Multiple users simultaneously?**
+        A: Share same device or export/merge data later
+        
+        **Q: Data backup?**
+        A: Export CSV files regularly - no automatic cloud sync
+        """)
+    
+    st.markdown("---")
+    
+    st.subheader("🏺 **About the Development**")
+    
+    st.markdown("""
+    **WoodFirePro** was created by analyzing real handwritten wood firing logs from experienced ceramic artists. 
+    The interface design prioritizes the expertise and intuition of the kiln master while providing comprehensive 
+    documentation tools for the entire firing team.
+    
+    **Core Values:**
+    - **Respect for Traditional Knowledge**: Digital tools should enhance, not replace, potter intuition
+    - **Real-world Tested**: Every feature based on actual firing log patterns
+    - **Community Focused**: Built for collaboration and knowledge sharing
+    - **Open and Transparent**: No black-box algorithms making firing decisions
+    
+    **Built with ❤️ for the wood firing community**
+    
+    ---
+    *"The kiln master's senses and experience are irreplaceable. Technology should document the journey, not dictate the destination."*
+    """)
 
 # Footer with collaboration status
 st.markdown("---")
