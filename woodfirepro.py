@@ -910,6 +910,8 @@ with about_tab:
     The interface design prioritizes the expertise and intuition of the kiln master while providing comprehensive 
     documentation tools for the entire firing team.
     
+    **Managed and created by [Alford Wayman](https://creekroadpottery.com) of Creek Road Pottery LLC with the help of Claude and ChatGPT coding.**
+    
     **Core Values:**
     - **Respect for Traditional Knowledge**: Digital tools should enhance, not replace, potter intuition
     - **Real-world Tested**: Every feature based on actual firing log patterns
@@ -920,6 +922,8 @@ with about_tab:
     
     ---
     *"The kiln master's senses and experience are irreplaceable. Technology should document the journey, not dictate the destination."*
+    
+    **© 2025 Creek Road Pottery LLC | WoodFirePro**
     """)
 
 # Footer with collaboration status
