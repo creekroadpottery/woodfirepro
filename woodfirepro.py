@@ -1,158 +1,307 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-st.set_page_config(page_title="Wood Firing Toolkit", page_icon="🔥", layout="wide")
+st.set_page_config(page_title="WoodFirePro", page_icon="🔥", layout="wide")
 
+# Initialize session state
 if "log" not in st.session_state:
     st.session_state.log = []
 if "crew" not in st.session_state:
     st.session_state.crew = []
 if "inventory" not in st.session_state:
     st.session_state.inventory = []
-if "kilnmap" not in st.session_state:
-    st.session_state.kilnmap = pd.DataFrame(
-        [["" for _ in range(6)] for _ in range(4)],
-        columns=[f"Col {i+1}" for i in range(6)]
-    )
 if "timer_end" not in st.session_state:
     st.session_state.timer_end = None
+if "firing_phase" not in st.session_state:
+    st.session_state.firing_phase = "heating"
 
-st.title("Wood Firing Toolkit")
-st.caption("MVP for potters who do wood firing")
+st.title("🔥 WoodFirePro")
+st.caption("Professional wood firing toolkit - inspired by real potter workflows")
 
 # Sidebar controls
 with st.sidebar:
-    st.header("Session")
+    st.header("🎯 Session Info")
     kiln_name = st.text_input("Kiln name", value="Ana")
     firing_id = st.text_input("Firing ID", value=datetime.now().strftime("%Y%m%d-%H%M"))
-    st.markdown("Use the tabs to log, time stokes, manage crew, map the kiln, and track wood.")
+    
+    st.header("🔥 Firing Phase")
+    phase = st.selectbox("Current Phase", 
+                        ["heating", "body_reduction", "glaze_maturation", "cooling", "finished"],
+                        index=["heating", "body_reduction", "glaze_maturation", "cooling", "finished"].index(st.session_state.firing_phase))
+    st.session_state.firing_phase = phase
+    
+    # Quick stats if we have data
+    if st.session_state.log:
+        df = pd.DataFrame(st.session_state.log)
+        latest = df.iloc[-1]
+        st.metric("Latest Temp", f"{latest.get('temp_front', 0)}°F")
+        st.metric("Last Entry", latest['time'].split()[1] if len(latest['time'].split()) > 1 else latest['time'])
 
-# Tabs
-log_tab, timer_tab, crew_tab, map_tab, inv_tab, export_tab = st.tabs([
-    "Firing Log", "Stoke Timer", "Crew", "Kiln Map", "Wood Inventory", "Export"
+# Main tabs
+log_tab, analysis_tab, timer_tab, cones_tab, crew_tab, export_tab = st.tabs([
+    "📝 Firing Log", "📊 Analysis", "⏲️ Timer", "🎯 Cone Tracker", "👥 Crew", "💾 Export"
 ])
 
-# Firing Log
+# Enhanced Firing Log
 with log_tab:
-    st.subheader("Log an observation")
-    col1, col2, col3, col4 = st.columns(4)
+    st.subheader("📝 Log Entry")
+    
+    # Time and basic info
+    col1, col2 = st.columns(2)
     with col1:
         t_now = st.datetime_input("Time", value=datetime.now())
     with col2:
-        temp = st.number_input("Temp F", min_value=60, max_value=2600, value=900, step=5)
-    with col3:
-        cones = st.text_input("Cones movement", value="5 soft")
-    with col4:
-        o2 = st.selectbox("Atmosphere", ["neutral", "oxidation", "reduction", "heavy reduction"]) 
-    notes = st.text_area("Notes", placeholder="Stoke, damper, spyhole, color, sound")
-    add = st.button("Add log entry")
-    if add:
-        st.session_state.log.append({
+        entry_type = st.selectbox("Entry Type", ["observation", "stoke", "damper_change", "problem", "milestone"])
+    
+    # Multiple temperature readings
+    st.subheader("🌡️ Temperature Readings")
+    temp_col1, temp_col2, temp_col3 = st.columns(3)
+    with temp_col1:
+        temp_front = st.number_input("Front spy (°F)", min_value=60, max_value=2600, value=900, step=5)
+    with temp_col2:
+        temp_middle = st.number_input("Middle spy (°F)", min_value=60, max_value=2600, value=900, step=5)
+    with temp_col3:
+        temp_back = st.number_input("Back spy (°F)", min_value=60, max_value=2600, value=900, step=5)
+    
+    # Enhanced atmosphere controls
+    st.subheader("💨 Atmosphere & Controls")
+    atm_col1, atm_col2, atm_col3 = st.columns(3)
+    with atm_col1:
+        atmosphere = st.selectbox("Atmosphere", 
+                                 ["neutral", "light_oxidation", "oxidation", "light_reduction", "reduction", "heavy_reduction"])
+    with atm_col2:
+        damper_position = st.slider("Damper Position", 0, 100, 50, help="0 = closed, 100 = fully open")
+    with atm_col3:
+        fuel_type = st.selectbox("Primary Fuel", ["wood", "gas", "wood+gas", "coasting"])
+    
+    # Flame and color observations
+    st.subheader("👁️ Visual Observations")
+    vis_col1, vis_col2 = st.columns(2)
+    with vis_col1:
+        flame_color = st.text_input("Flame Color/Character", placeholder="e.g., orange lazy flames, blue/white active")
+    with vis_col2:
+        spy_color = st.text_input("Spy Hole Color", placeholder="e.g., bright orange, cherry red, white heat")
+    
+    # Action taken
+    action_taken = st.text_area("Action Taken", placeholder="e.g., Added 2 splits pine, closed damper 1/4, increased air")
+    
+    # General notes
+    notes = st.text_area("Additional Notes", placeholder="Observations, decisions, problems, milestones...")
+    
+    # Add entry button
+    if st.button("➕ Add Log Entry", type="primary"):
+        entry = {
             "kiln": kiln_name,
             "firing_id": firing_id,
             "time": t_now.strftime("%Y-%m-%d %H:%M:%S"),
-            "temp_F": temp,
-            "cones": cones,
-            "atmosphere": o2,
+            "phase": phase,
+            "entry_type": entry_type,
+            "temp_front": temp_front,
+            "temp_middle": temp_middle,
+            "temp_back": temp_back,
+            "atmosphere": atmosphere,
+            "damper_position": damper_position,
+            "fuel_type": fuel_type,
+            "flame_color": flame_color,
+            "spy_color": spy_color,
+            "action_taken": action_taken,
             "notes": notes
-        })
-        st.success("Entry added")
+        }
+        st.session_state.log.append(entry)
+        st.success("✅ Entry added successfully!")
+        st.rerun()
 
+    # Display recent entries
     if st.session_state.log:
+        st.subheader("📋 Recent Entries")
         df = pd.DataFrame(st.session_state.log)
-        df_sorted = df.sort_values("time")
-        st.dataframe(df_sorted, use_container_width=True)
-        st.line_chart(df_sorted.set_index("time")["temp_F"])  # simple temp trend
+        df_display = df.sort_values("time", ascending=False).head(10)
+        
+        # Create a more readable display
+        for _, row in df_display.iterrows():
+            with st.expander(f"{row['time']} - {row['entry_type'].title()} ({row['temp_front']}°F)"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Temps:** F:{row['temp_front']}° M:{row['temp_middle']}° B:{row['temp_back']}°")
+                    st.write(f"**Atmosphere:** {row['atmosphere']} (Damper: {row['damper_position']}%)")
+                    st.write(f"**Fuel:** {row['fuel_type']}")
+                with col2:
+                    if row['flame_color']:
+                        st.write(f"**Flame:** {row['flame_color']}")
+                    if row['spy_color']:
+                        st.write(f"**Spy Hole:** {row['spy_color']}")
+                    if row['action_taken']:
+                        st.write(f"**Action:** {row['action_taken']}")
+                if row['notes']:
+                    st.write(f"**Notes:** {row['notes']}")
 
-# Stoke Timer
+# Analysis Tab
+with analysis_tab:
+    if st.session_state.log and len(st.session_state.log) > 1:
+        df = pd.DataFrame(st.session_state.log)
+        df['datetime'] = pd.to_datetime(df['time'])
+        df = df.sort_values('datetime')
+        
+        # Multi-temperature chart
+        fig = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=('Temperature Progress', 'Atmosphere & Damper'),
+            vertical_spacing=0.1
+        )
+        
+        # Temperature traces
+        fig.add_trace(
+            go.Scatter(x=df['datetime'], y=df['temp_front'], name='Front Spy', line=dict(color='red')),
+            row=1, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=df['datetime'], y=df['temp_middle'], name='Middle Spy', line=dict(color='orange')),
+            row=1, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=df['datetime'], y=df['temp_back'], name='Back Spy', line=dict(color='yellow')),
+            row=1, col=1
+        )
+        
+        # Damper position
+        fig.add_trace(
+            go.Scatter(x=df['datetime'], y=df['damper_position'], name='Damper %', line=dict(color='blue')),
+            row=2, col=1
+        )
+        
+        fig.update_layout(height=600, title="Firing Analysis")
+        fig.update_yaxes(title_text="Temperature (°F)", row=1, col=1)
+        fig.update_yaxes(title_text="Damper Position (%)", row=2, col=1)
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Phase analysis
+        st.subheader("📊 Firing Statistics")
+        stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4)
+        with stats_col1:
+            st.metric("Duration", f"{(df['datetime'].max() - df['datetime'].min()).total_seconds() / 3600:.1f} hrs")
+        with stats_col2:
+            st.metric("Max Temp", f"{df[['temp_front', 'temp_middle', 'temp_back']].max().max():.0f}°F")
+        with stats_col3:
+            st.metric("Avg Climb Rate", f"{(df[['temp_front', 'temp_middle', 'temp_back']].max().max() - df[['temp_front', 'temp_middle', 'temp_back']].min().min()) / ((df['datetime'].max() - df['datetime'].min()).total_seconds() / 3600):.0f}°F/hr")
+        with stats_col4:
+            reduction_pct = (df['atmosphere'].str.contains('reduction').sum() / len(df) * 100)
+            st.metric("Reduction Time", f"{reduction_pct:.0f}%")
+    else:
+        st.info("Add some log entries to see analysis charts and statistics.")
+
+# Enhanced Timer
 with timer_tab:
-    st.subheader("Stoke interval timer")
-    colA, colB, colC = st.columns(3)
-    with colA:
-        interval = st.number_input("Interval minutes", min_value=1, max_value=60, value=7)
-    with colB:
-        if st.button("Start"):
+    st.subheader("⏲️ Stoke Timer")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        interval = st.number_input("Interval (minutes)", min_value=1, max_value=120, value=15)
+    with col2:
+        if st.button("🔥 Start Timer"):
             st.session_state.timer_end = datetime.now() + timedelta(minutes=interval)
-    with colC:
-        if st.button("Stop"):
+    with col3:
+        if st.button("⏹️ Stop Timer"):
             st.session_state.timer_end = None
-
+    
     if st.session_state.timer_end:
         remaining = st.session_state.timer_end - datetime.now()
         secs = max(int(remaining.total_seconds()), 0)
         m, s = divmod(secs, 60)
-        st.metric("Time to next stoke", f"{m:02d}:{s:02d}")
-        if secs == 0:
-            st.warning("Stoke now")
+        
+        if secs > 0:
+            st.metric("⏰ Time to next stoke", f"{m:02d}:{s:02d}")
+            # Auto-refresh every second
+            st.rerun()
+        else:
+            st.error("🚨 STOKE NOW! 🚨")
+            # Auto-stop timer when it hits zero
+            st.session_state.timer_end = None
     else:
-        st.info("Timer idle")
+        st.info("⏸️ Timer idle - Click 'Start Timer' when you're ready")
 
-# Crew
+# Cone Tracker Tab
+with cones_tab:
+    st.subheader("🎯 Cone Movement Tracker")
+    st.caption("Track cone progression across different areas of your kiln")
+    
+    # Cone tracking would be a more sophisticated grid here
+    # For now, simple tracking
+    cone_areas = ["Front Bottom", "Front Top", "Middle Bottom", "Middle Top", "Back Bottom", "Back Top"]
+    common_cones = ["08", "06", "04", "03", "1", "3", "5", "6", "7", "8", "9", "10", "11", "12"]
+    
+    st.write("Quick cone status entry:")
+    cone_col1, cone_col2, cone_col3, cone_col4 = st.columns(4)
+    with cone_col1:
+        cone_area = st.selectbox("Kiln Area", cone_areas)
+    with cone_col2:
+        cone_number = st.selectbox("Cone Number", common_cones)
+    with cone_col3:
+        cone_status = st.selectbox("Status", ["standing", "soft", "bending", "bent", "down", "overfired"])
+    with cone_col4:
+        if st.button("Add Cone Status"):
+            st.success(f"Cone {cone_number} in {cone_area}: {cone_status}")
+
+# Crew tab (simplified from original)
 with crew_tab:
-    st.subheader("Crew board")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        name = st.text_input("Name", key="crew_name")
-    with c2:
-        role = st.selectbox("Role", ["lead", "stoker", "spotter", "wood", "float"], key="crew_role")
-    with c3:
-        start = st.time_input("On shift", key="crew_start")
-    addc = st.button("Add crew member")
-    if addc and name:
-        st.session_state.crew.append({"name": name, "role": role, "on_shift": str(start)})
-        st.success("Crew updated")
+    st.subheader("👥 Crew Management")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        name = st.text_input("Name")
+    with col2:
+        role = st.selectbox("Role", ["lead", "stoker", "spotter", "wood_prep", "floater", "observer"])
+    with col3:
+        shift_start = st.time_input("Shift Start")
+    
+    if st.button("Add Crew Member") and name:
+        st.session_state.crew.append({"name": name, "role": role, "shift_start": str(shift_start)})
+        st.success(f"Added {name} as {role}")
+    
     if st.session_state.crew:
-        st.dataframe(pd.DataFrame(st.session_state.crew), use_container_width=True)
+        crew_df = pd.DataFrame(st.session_state.crew)
+        st.dataframe(crew_df, use_container_width=True)
 
-# Kiln Map
-with map_tab:
-    st.subheader("Kiln map grid")
-    st.caption("Click cells to enter cone or test tile info")
-    edited = st.data_editor(st.session_state.kilnmap, use_container_width=True, num_rows="dynamic")
-    st.session_state.kilnmap = edited
-
-# Wood Inventory
-with inv_tab:
-    st.subheader("Wood tracking")
-    colw1, colw2, colw3, colw4 = st.columns(4)
-    with colw1:
-        species = st.text_input("Species", value="pine")
-    with colw2:
-        cords = st.number_input("Cords", min_value=0.0, step=0.1, value=0.5)
-    with colw3:
-        mc = st.number_input("Moisture percent", min_value=0, max_value=100, value=20)
-    with colw4:
-        loc = st.text_input("Location", value="shed A")
-    addw = st.button("Add inventory")
-    if addw:
-        st.session_state.inventory.append({
-            "species": species,
-            "cords": cords,
-            "moisture_pct": mc,
-            "location": loc
-        })
-        st.success("Wood added")
-    if st.session_state.inventory:
-        st.dataframe(pd.DataFrame(st.session_state.inventory), use_container_width=True)
-
-# Export
+# Export tab
 with export_tab:
-    st.subheader("Export data")
-    log_df = pd.DataFrame(st.session_state.log) if st.session_state.log else pd.DataFrame()
-    crew_df = pd.DataFrame(st.session_state.crew) if st.session_state.crew else pd.DataFrame()
-    inv_df = pd.DataFrame(st.session_state.inventory) if st.session_state.inventory else pd.DataFrame()
-    map_df = st.session_state.kilnmap.copy()
+    st.subheader("💾 Export Data")
+    
+    if st.session_state.log:
+        log_df = pd.DataFrame(st.session_state.log)
+        csv = log_df.to_csv(index=False)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                "📥 Download Full Firing Log",
+                csv.encode('utf-8'),
+                f"{kiln_name}_{firing_id}_complete_log.csv",
+                "text/csv"
+            )
+        with col2:
+            # Summary export
+            summary_data = {
+                "firing_id": firing_id,
+                "kiln": kiln_name,
+                "phase": phase,
+                "start_time": log_df['time'].min() if not log_df.empty else "",
+                "end_time": log_df['time'].max() if not log_df.empty else "",
+                "max_temp": log_df[['temp_front', 'temp_middle', 'temp_back']].max().max() if not log_df.empty else 0,
+                "total_entries": len(log_df)
+            }
+            summary_csv = pd.DataFrame([summary_data]).to_csv(index=False)
+            st.download_button(
+                "📋 Download Summary",
+                summary_csv.encode('utf-8'),
+                f"{kiln_name}_{firing_id}_summary.csv",
+                "text/csv"
+            )
+    else:
+        st.info("No firing data to export yet. Start logging to enable export.")
 
-    colx1, colx2, colx3, colx4 = st.columns(4)
-    with colx1:
-        st.download_button("Download log CSV", log_df.to_csv(index=False).encode("utf-8"), "firing_log.csv", "text/csv")
-    with colx2:
-        st.download_button("Download crew CSV", crew_df.to_csv(index=False).encode("utf-8"), "crew.csv", "text/csv")
-    with colx3:
-        st.download_button("Download wood CSV", inv_df.to_csv(index=False).encode("utf-8"), "wood.csv", "text/csv")
-    with colx4:
-        st.download_button("Download kiln map CSV", map_df.to_csv(index=False).encode("utf-8"), "kiln_map.csv", "text/csv")
-
-st.caption("Built with Streamlit. Save your CSV files after each session.")
-
+# Footer
+st.markdown("---")
+st.caption("🔥 WoodFirePro - Built for potters, by potters. Save your data regularly!")
